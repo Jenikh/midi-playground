@@ -3,10 +3,6 @@ import numpy as np
 
 import pygame
 
-"""
-https://stackoverflow.com/questions/67561142/bloom-effect-in-pygame-so-that-text-glows
-"""
-
 
 class Colors:
     WHITE_ISH = (246, 246, 246)
