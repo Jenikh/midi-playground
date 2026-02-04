@@ -189,10 +189,63 @@ class Config:
     square_min_glow = 7
     border_color = pygame.Color(255, 255, 255)
     glow_color = pygame.Color(255, 255, 255)
+class BaseConfig:
+    SCREEN_WIDTH = pygame.display.Info().current_w if pygame.display.Info().current_w else 1920
+    SCREEN_HEIGHT = pygame.display.Info().current_h if pygame.display.Info().current_h else 1080
+    theme: Optional[str] = "dark"
+    seed: Optional[int] = None
+    camera_mode: Optional[int] = 2
+    start_playing_delay = 3000
+    max_notes: Optional[int] = None
+    bounce_min_spacing: Optional[float] = 30
+    square_speed: Optional[int] = 600
+    volume: Optional[int] = 70
+    music_offset: Optional[int] = 0
+    direction_change_chance: Optional[int] = 30
+    hp_drain_rate = 10
+    theatre_mode = True
+    particle_trail = True
+    shader_file_name = "none.glsl"
+    do_color_bounce_pegs = False
+    do_particles_on_bounce = True
 
+    # settings that are not configurable (yet)
+    backtrack_chance: Optional[float] = 0.02
+    backtrack_amount: Optional[int] = 40
+    rainbow_speed: Optional[int] = 30
+    square_swipe_anim_speed: Optional[int] = 4
+    particle_amount = 10
+    
+    # other random stuff
+    current_song = None
+    save_attrs = ["theme", "seed", "camera_mode", "start_playing_delay", "max_notes", "bounce_min_spacing",
+                  "square_speed", "volume", "music_offset", "direction_change_chance", "hp_drain_rate", "theatre_mode",
+                  "particle_trail", "shader_file_name", "do_color_bounce_pegs", 
+                  "do_particles_on_bounce",
+                  "SCREEN_WIDTH", "SCREEN_HEIGHT"]
+    ctx: moderngl.Context = None
+    glsl_program: moderngl.Program = None
+    render_object: moderngl.VertexArray = None
+    screen: pygame.Surface = None
+    dt = 0.01
+
+    # ascii shader
+    ascii_tex: moderngl.Texture = None
+
+    # glow effect, for dark_modern only for now
+    square_glow = True
+    square_glow_duration = 0.8
+    glow_intensity = 15  # 1-40
+    square_min_glow = 7
+    border_color = pygame.Color(255, 255, 255)
+    glow_color = pygame.Color(255, 255, 255)
 
 def get_colors():
     return Config.color_themes.get(Config.theme, "dark")
+
+def set_default_config():
+    save_to_file({k: getattr(BaseConfig, k) for k in BaseConfig.save_attrs})
+    load_from_file()
 
 
 def save_to_file(dat: Optional[dict[str, Any]] = None):

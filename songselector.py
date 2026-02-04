@@ -42,8 +42,14 @@ class Song:
         overlay_surf.blit(title_surface, title_surface.get_rect(topright=overlay_surf.get_rect().topright).move(-20, 20))
 
         if not is_from_osu_file:
+            song_by_text = lang_key("song-by")
+            mapper_text = lang_key("mapper-text")
+            if mapper_text == "<missing>":
+                mapper_text = "Mapped by"
+            if song_by_text == "<missing>":
+                song_by_text = "Song by"
             details_surface: pygame.Surface = get_font(
-                24).render(f"Song by {self.song_artist} | Mapped by {self.mapper}", True, (0, 0, 0))
+                24).render(f"{song_by_text} {self.song_artist} | {mapper_text} {self.mapper}", True, (0, 0, 0))
         else:
             details_surface: pygame.Surface = get_font(24).render(f"WARNING: EXPERIMENTAL!!!", True, (0, 0, 0))
         overlay_surf.blit(details_surface, details_surface.get_rect(bottomright=overlay_surf.get_rect().bottomright).move(-20, -20))
