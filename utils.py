@@ -1,4 +1,5 @@
 # noinspection PyUnresolvedReferences
+from shutil import ExecError
 from typing import Union, Optional, BinaryIO
 # noinspection PyUnresolvedReferences
 from errors import *
@@ -116,8 +117,12 @@ def open_file(filename):
 
 # noinspection PyUnresolvedReferences
 def read_midi_file(file):
-    midi_file = mido.MidiFile(file=file)
-
+    try:
+        midi_file = mido.MidiFile(file=file)
+    except Exception as e:
+        print(f"ERROR: {str(e)}")
+        print(f"Song filename: {file} is invalid")
+        return None
     notes = []
     current_time = 0
 
@@ -219,7 +224,7 @@ def lang_key(key: str):
     english_language = TRANSLATIONS["english"]
     my_language = TRANSLATIONS.get(Config.language, {})
     if key not in english_language:
-        print(f"warning: there is no english text for {key} yet!!")
+        print(f"Warning: there is no english text for {key} yet!!")
     return my_language.get(key, english_language.get(key, "<missing>"))
 
 

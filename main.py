@@ -27,6 +27,8 @@ def main():
 
     # pygame and other boilerplate
     n_frames = 0
+    open_frames = 0
+    can_open_web = True
     pygame.mixer.music.load("./assets/mainmenu.mp3")
     pygame.mixer.music.set_volume(Config.volume / 100)
     pygame.mixer.music.play(loops=-1, start=2)
@@ -100,7 +102,11 @@ def main():
     # game loop
     running = True
     while running:
+        open_frames +=1
         n_frames += 1
+        if open_frames >= 100 and not can_open_web:
+            can_open_web = True
+            open_frames = 0
         # thanks to TheCodingCrafter for the implementation
         if Config.theme == "rainbow":
             to_set_as_rainbow = pygame.Color((0, 0, 0))
@@ -161,8 +167,15 @@ def main():
                 if option_id == "open-songs-folder":
                     open_file(join(getcwd(), "songs"))
                     continue
-                if option_id == "contribute":
-                    webbrowser.open("https://github.com/quasar098/midi-playground")
+                if option_id == "contribute" and can_open_web:
+                    # Im so sorry for this if it causes you problems!
+                    open_frames = 0
+                    can_open_web = False
+                    wb = webbrowser.open("https://github.com/quasar098/midi-playground")
+                    if not wb:
+                        print("Cannot open webbrowser!")
+                    continue
+                elif not can_open_web:
                     continue
                 menu.active = False
                 if option_id == "config":
@@ -211,15 +224,19 @@ def main():
                 song_selector.active = True
 
         # draw stuff here
-        game.draw(screen, n_frames)
-        song_selector.draw(screen)
-        config_page.draw(screen)
-        menu.draw(screen, n_frames)
-        error_screen.draw(screen)
+        try:
+            game.draw(screen, n_frames)
+            song_selector.draw(screen)
+            config_page.draw(screen)
+            menu.draw(screen, n_frames)
+            error_screen.draw(screen)
 
-        update_screen(screen, glsl_program, render_object)
+            update_screen(screen, glsl_program, render_object)
 
-        Config.dt = clock.tick(FRAMERATE) / 1000
+            Config.dt = clock.tick(FRAMERATE) / 1000
+        except KeyboardInterrupt:
+            print("Exiting...")
+            running = False
     pygame.quit()
     save_to_file()
 

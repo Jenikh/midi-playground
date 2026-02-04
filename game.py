@@ -35,9 +35,10 @@ class Game:
             else:
                 with zf.open(Config.current_song.song_file_name) as f:
                     notes = read_midi_file(file=f)
+                    if notes is None:
+                        return True
         notes = [note for note in notes]
         self.notes = notes
-
         # other settings
 
         self.world = World()
@@ -45,7 +46,9 @@ class Game:
         self.offset_happened = False
         self.camera.lock_type = CameraFollow(Config.camera_mode)
         screen.fill(get_colors()["background"])
-        information_texts = [
+        inf_txts = lang_key("info-texts")
+        if type(inf_txts) != list:
+            information_texts = [
             "Map loading stuck at some percentage? Try changing the \"Square speed\" in the config",
             "Also try changing the \"Change dir chance\" and the \"Bounce min spacing\"",
             "",
@@ -54,7 +57,9 @@ class Game:
             "Don't want to play the game? Turn on \"Theatre mode\" in the config",
             "",
             "Music off-sync? Change the \"Music offset\" in the settings"
-        ]
+            ]
+        else:
+            information_texts = inf_txts
         for index, info_text in enumerate(information_texts):
             rendered_text = get_font(24).render(info_text, True, get_colors()["hallway"])
             screen.blit(rendered_text, (50, 200 + 30 * index))
