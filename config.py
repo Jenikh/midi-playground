@@ -165,6 +165,8 @@ class Config:
     language = "english"
 
     # other random stuff
+    IN_DEVELOPMENT = True # TODO: Nothing just an reminder to turn this off in releases
+    recursion_limit: int = 2147483647 # This is the maximum
     current_song = None
     ctx: moderngl.Context = None
     glsl_program: moderngl.Program = None

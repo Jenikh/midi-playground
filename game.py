@@ -23,6 +23,7 @@ class Game:
         self.misses = 0
         self.mouse_down = False
         self.hitted_rectangles = []                           
+        self.stoped = False
 
     def start_song(self, screen: pygame.Surface):
         random.seed(Config.seed)
@@ -44,7 +45,10 @@ class Game:
         self.world = World()
         self.music_has_played = False
         self.offset_happened = False
-        self.camera.lock_type = CameraFollow(Config.camera_mode)
+        try:
+            self.camera.lock_type = CameraFollow(Config.camera_mode)
+        except ValueError:
+            self.camera.lock_type = CameraFollow(0)
         screen.fill(get_colors()["background"])
         inf_txts = lang_key("info-texts")
         if type(inf_txts) != list:
@@ -78,8 +82,10 @@ class Game:
             self.safe_areas = self.world.gen_future_bounces(self.notes, update_loading_screen)
             self.safe_areas = fix_overlap(self.safe_areas, update_loading_screen)
         except UserCancelsLoadingError:
+            print("User cancelled loading")
             return True
         except MapLoadingFailureError as e:
+            print(e)
             return e.args[0] if len(e.args) else "Big error... can't load map :("
         self.world.start_time = get_current_time()
         self.world.square.dir = [0, 0]

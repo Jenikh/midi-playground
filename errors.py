@@ -11,3 +11,8 @@ class UserCancelsLoadingError(Exception):
 class MapLoadingFailureError(Exception):
     """The map fails to load (recurs function fails)"""
     pass
+
+
+class InvalidConfigError(Exception):
+    """The config is invalid"""
+    pass

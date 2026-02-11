@@ -64,8 +64,12 @@ class Menu:
         self.anim = 1
         # note that there are spaces after each line of code in the marquee text
         self.marquee_text = lang_key("title-marquee")
-        self.title_surf = get_font(72).render(lang_key("title"), True, get_colors()["hallway"])
-        self.marquee_surf = get_font(24).render(self.marquee_text, True, get_colors()["hallway"])
+        if not Config.theme == "dark_modern":
+            self.title_color = get_colors()["hallway"]
+        else:
+            self.title_color = (255, 255, 255) # White
+        self.title_surf = get_font(72).render(lang_key("title"), True, self.title_color)
+        self.marquee_surf = get_font(24).render(self.marquee_text, True, self.title_color)
         self.flags = {}
         for language in TRANSLATIONS:
             self.flags[language] = pygame.image.load(f"./assets/flags/{language}.png").convert_alpha()
@@ -77,12 +81,19 @@ class Menu:
         self.left_lang_rect: Optional[pygame.Rect] = None
         self.right_lang_rect: Optional[pygame.Rect] = None
         self.requires_restart_surf: Optional[pygame.Surface] = None
+        self.debug_active: bool = False
+
 
     @property
     def screensaver_rect(self):
         return pygame.Rect(0, 0, int(Config.SCREEN_WIDTH / 2 - 100), Config.SCREEN_HEIGHT).inflate(-100, -100)
 
     def draw(self, screen: pygame.Surface, n_frames: int):
+        self.marquee_text = lang_key("title-marquee")
+        if not Config.theme == "dark_modern": # Somehow this isnt running always, only with debug mode...
+            self.title_color = get_colors()["hallway"]
+        else:
+            self.title_color = (255, 255, 255) # White
         if self.active:
             if self.anim == 0:
                 self.anim = 0.3
@@ -177,11 +188,14 @@ class Menu:
             option.before_hover = new_hover
 
         # flag chooser
-        current_flag = self.flags[Config.language]
+        try:
+            current_flag = self.flags[Config.language]
+        except KeyError:
+            raise InvalidConfigError()
         cfrect = current_flag.get_rect(bottomright=(Config.SCREEN_WIDTH-100, Config.SCREEN_HEIGHT-30))
         screen.blit(current_flag, cfrect)
-        left_arrow = get_font(72, "poppins-regular.ttf").render("<", True, get_colors()["hallway"])
-        right_arrow = get_font(72, "poppins-regular.ttf").render(">", True, get_colors()["hallway"])
+        left_arrow = get_font(72, "poppins-regular.ttf").render("<", True, self.title_color)
+        right_arrow = get_font(72, "poppins-regular.ttf").render(">", True, self.title_color)
         self.left_lang_rect = left_arrow.get_rect(midright=cfrect.midleft).move(-5, 5)
         screen.blit(left_arrow, self.left_lang_rect)
         self.right_lang_rect = right_arrow.get_rect(midleft=cfrect.midright).move(5, 5)
@@ -201,6 +215,10 @@ class Menu:
                 return option.id
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button in (1, 2, 3):
+                if not self.left_lang_rect or not self.right_lang_rect:
+                    print("If you see this youre lucky!")
+                    self.__init__() # Just in case
+                    return
                 # inflate for more enjoyment (aim trainer minigame !?!? crazy)
                 if self.square.rect.inflate(20, 20).collidepoint(pygame.mouse.get_pos()):
                     play_sound("wood.wav", 1)

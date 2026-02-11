@@ -163,6 +163,25 @@ class SongSelector:
         rect.move_ip(-int(abs(Config.SCREEN_HEIGHT / 2 - rect.centery)) / 10, 0)
         rect.move_ip(interpolate_fn(self.songs[index].anim) * 60, 0)
         return rect
+    def play_song(self, index):
+        songs = self.songs
+        if index < 0 or index >= len(songs):
+            print("Invalid song index")
+            return
+        song = songs[index]
+        print("Playing song",song.name)
+        play_sound("select.mp3")
+
+        with ZipFile(song.fp) as zf:
+            if song.audio_file_name.lower().endswith(".osu"):
+                pygame.mixer.music.load(zf.read(song.audio_file_name))
+            else:
+                with zf.open(song.audio_file_name) as f:
+                    pygame.mixer.music.load(BytesIO(f.read()))
+
+        pygame.mixer.music.set_volume(Config.volume / 100)
+        pygame.mixer.music.play()
+
 
     def handle_event(self, event: pygame.event.Event):
         if not self.active:
@@ -177,14 +196,7 @@ class SongSelector:
                         if self.selected_index == index:
                             continue
                         play_sound("select.mp3")
-                        with ZipFile(song.fp) as zf:
-                            if song.audio_file_name.lower().endswith(".osu"):
-                                pygame.mixer.music.load(zf.read(song.audio_file_name))
-                            else:
-                                with zf.open(song.audio_file_name) as f:
-                                    pygame.mixer.music.load(BytesIO(f.read()))
-                        pygame.mixer.music.set_volume(Config.volume/100)
-                        pygame.mixer.music.play()
+                        self.play_song(index)
                         self.selected_index = index
                         return
                 if self.play_button_rect.collidepoint(pygame.mouse.get_pos()):

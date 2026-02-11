@@ -6,3 +6,4 @@ assets/settings.json
 dist
 main.spec
 venv
+logs

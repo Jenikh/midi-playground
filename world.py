@@ -86,8 +86,10 @@ class World:
                 max_percent += 1
                 if percent_update_callback(f"{max_percent}% done generating map"):
                     raise UserCancelsLoadingError()
-
-            all_bounce_rects = [_bounc.get_collision_rect() for _bounc in bounces_so_far]
+            try:
+                all_bounce_rects = [_bounc.get_collision_rect() for _bounc in bounces_so_far]
+            except KeyboardInterrupt:
+                raise UserCancelsLoadingError()
             if len(notes) == 0:
                 return bounces_so_far
             # print(depth * 100 // total_notes)

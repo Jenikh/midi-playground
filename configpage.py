@@ -115,7 +115,7 @@ class ConfigPage:
 
         self.s_square_speed = pgui.elements.UIHorizontalSlider(
             relative_rect=pygame.Rect((Config.SCREEN_WIDTH // 10, Config.SCREEN_HEIGHT * 6 // 10, 300, 30)),
-            start_value=Config.square_speed,
+            start_value=int(Config.square_speed),
             value_range=(100, 2000),
             manager=self.ui_manager
         )
@@ -269,93 +269,112 @@ class ConfigPage:
         self.can_write_to_config = True
 
     def handle_event(self, event: pygame.event.Event):
-        
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1:
-                if self.made_with_pgui_rect.collidepoint(pygame.mouse.get_pos()):
-                    webbrowser.open("https://github.com/MyreMylar/pygame_gui")
+        if not self.active:
+            return
 
+        # --- Mouse clicks (non-pgui) ---
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.made_with_pgui_rect.collidepoint(pygame.mouse.get_pos()):
+                webbrowser.open("https://github.com/MyreMylar/pygame_gui")
+
+        # --- Button presses ---
         if event.type == pgui.UI_BUTTON_PRESSED:
             if event.ui_element == self.back_button:
                 play_sound("wood.wav")
                 return True
-            
             if event.ui_element == self.s_reset_button:
-                # TODO: rework this
-                # TODO: this does not work with translation stuffs
                 set_default_config()
                 play_sound("wood.wav")
                 self.active = False
                 self.__init__()
                 return True
         if not self.can_write_to_config:
+            self.ui_manager.process_events(event)
             return
-        if event.type == pgui.UI_DROP_DOWN_MENU_CHANGED:
-            play_sound("wood.wav")
-            try:
-                if event.ui_element == self.s_camera_mode:
-                    Config.camera_mode = "CLSP".index(event.text[0])  # awful way of doing this lol
-                if event.ui_element == self.s_color_theme:
-                    Config.theme = event.text
-                if event.ui_element == self.s_theatre_mode:
-                    Config.theatre_mode = bool(self.off_on_dropdown.index(event.text))
-                if event.ui_element == self.s_particle_trail:
-                    Config.particle_trail = bool(self.off_on_dropdown.index(event.text))
-                if event.ui_element == self.s_shader:
-                    Config.shader_file_name = event.text
-                if event.ui_element == self.s_do_bounce_color_pegs:
-                    Config.do_color_bounce_pegs = bool(self.off_on_dropdown.index(event.text))
-                if event.ui_element == self.s_do_particles_on_bounce:
-                    Config.do_particles_on_bounce = bool(self.off_on_dropdown.index(event.text))
-                if event.ui_element == self.s_resolution:
-                    event.text = event.text.split("x")
-                    Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT = int(event.text[0]), int(event.text[1])
-
-                if event.type == pgui.UI_TEXT_ENTRY_CHANGED:
-                    if event.ui_element == self.s_seed:
-                        text: str = event.text
-                        if text.isnumeric() and len(text):
-                            Config.seed = int(text)
-                        else:
-                            Config.seed = None
-                    if event.ui_element == self.s_max_notes:
-                        text: str = event.text
-                        if text.isnumeric() and len(text):
-                            Config.max_notes = int(text)
-                        else:
-                            Config.max_notes = None
-
-                if event.type == pgui.UI_HORIZONTAL_SLIDER_MOVED:
-                    if event.ui_element == self.s_start_playing_delay:
-                        self.s_start_playing_delay_label.set_text(f"{lang_key('starting-time-delay')} ({event.value}ms):")
-                        Config.start_playing_delay = event.value
-                    if event.ui_element == self.s_bounce_min_spacing:
-                        self.s_bounce_min_spacing_label.set_text(f"{lang_key('bounce-min-spacing')} ({event.value}ms):")
-                        Config.bounce_min_spacing = event.value
-                    if event.ui_element == self.s_square_speed:
-                        rounded = round(event.value, -2)
-                        self.s_square_speed_label.set_text(f"{lang_key('square-speed')} ({rounded} pixels/s):")
-                        Config.square_speed = rounded
-                    if event.ui_element == self.s_game_volume:
-                        self.s_game_volume_label.set_text(f"{lang_key('music-volume')} ({event.value}%):")
-                        Config.volume = event.value
-                        pygame.mixer.music.set_volume(event.value / 100)
-                    if event.ui_element == self.s_music_offset:
-                        self.s_music_offset_label.set_text(f"{lang_key('music-offset')} ({event.value}ms):")
-                        Config.music_offset = event.value
-                    if event.ui_element == self.s_direction_change_chance:
-                        self.s_direction_change_chance_label.set_text(f"{lang_key('change-dir-chance')} ({event.value}%):")
-                        Config.direction_change_chance = event.value
-                    if event.ui_element == self.s_hp_drain_rate:
-                        self.s_hp_drain_rate_label.set_text(f"{lang_key('hp-drain-rate')} ({event.value}/s):")
-                        Config.hp_drain_rate = event.value
-            except (AttributeError, ValueError):
-                print("Translation is invalid!")
-                print("Going back...")
-                self.can_write_to_config = False
+        try:
+            # --- Dropdowns ---
+            if event.type == pgui.UI_DROP_DOWN_MENU_CHANGED:
                 play_sound("wood.wav")
-                return True
+                if event.ui_element == self.s_camera_mode:
+                    Config.camera_mode = "CLSP".index(event.text[0])
+                elif event.ui_element == self.s_color_theme:
+                    Config.theme = event.text
+                elif event.ui_element == self.s_theatre_mode:
+                    Config.theatre_mode = bool(self.off_on_dropdown.index(event.text))
+                elif event.ui_element == self.s_particle_trail:
+                    Config.particle_trail = bool(self.off_on_dropdown.index(event.text))
+                elif event.ui_element == self.s_shader:
+                    Config.shader_file_name = event.text
+                elif event.ui_element == self.s_do_bounce_color_pegs:
+                    Config.do_color_bounce_pegs = bool(self.off_on_dropdown.index(event.text))
+                elif event.ui_element == self.s_do_particles_on_bounce:
+                    Config.do_particles_on_bounce = bool(self.off_on_dropdown.index(event.text))
+                elif event.ui_element == self.s_resolution:
+                    w, h = map(int, event.text.split("x"))
+                    Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT = w, h
+            # --- Text inputs ---
+            elif event.type == pgui.UI_TEXT_ENTRY_CHANGED:
+                text = event.text
+                if event.ui_element == self.s_seed:
+                    Config.seed = int(text) if text.isnumeric() and text else None
+                elif event.ui_element == self.s_max_notes:
+                    Config.max_notes = int(text) if text.isnumeric() and text else None
+            # --- Sliders ---
+            elif event.type == pgui.UI_HORIZONTAL_SLIDER_MOVED:
+                value = event.value
+                if event.ui_element == self.s_start_playing_delay:
+                    self.s_start_playing_delay_label.set_text(
+                        f"{lang_key('starting-time-delay')} ({value}ms):"
+                    )
+                    Config.start_playing_delay = value
+                elif event.ui_element == self.s_bounce_min_spacing:
+                    self.s_bounce_min_spacing_label.set_text(
+                        f"{lang_key('bounce-min-spacing')} ({value}ms):"
+                    )
+                    Config.bounce_min_spacing = value
+
+                elif event.ui_element == self.s_square_speed:
+                    rounded = round(value, -2)
+                    self.s_square_speed_label.set_text(
+                        f"{lang_key('square-speed')} ({rounded} pixels/s):"
+                    )
+                    Config.square_speed = rounded
+
+                elif event.ui_element == self.s_game_volume:
+                    self.s_game_volume_label.set_text(
+                        f"{lang_key('music-volume')} ({value}%):"
+                    )
+                    Config.volume = value
+                    pygame.mixer.music.set_volume(value / 100)
+
+                elif event.ui_element == self.s_music_offset:
+                    self.s_music_offset_label.set_text(
+                        f"{lang_key('music-offset')} ({value}ms):"
+                    )
+                    Config.music_offset = value
+
+                elif event.ui_element == self.s_direction_change_chance:
+                    self.s_direction_change_chance_label.set_text(
+                        f"{lang_key('change-dir-chance')} ({value}%):"
+                    )
+                    Config.direction_change_chance = value
+
+                elif event.ui_element == self.s_hp_drain_rate:
+                    self.s_hp_drain_rate_label.set_text(
+                        f"{lang_key('hp-drain-rate')} ({value}/s):"
+                    )
+                    Config.hp_drain_rate = value
+
+        except (AttributeError, ValueError):
+            print("Translation is invalid!")
+            print("Going back...")
+            self.can_write_to_config = False
+            play_sound("wood.wav")
+            return True
+
         self.ui_manager.process_events(event)
+
+
 
     def draw(self, screen: pygame.Surface):
         if not self.active:

@@ -38,6 +38,7 @@ own song but don't know how? Check out docs/SONGS.md in the source code to learn
         "change-dir-chance": "Change dir chance",
         "hp-drain-rate": "HP drain rate",
         "music-volume": "Music volume",
+        "menu-music-volume": "Menu music volume",
         "color-theme": "Color theme",
         "theatre-mode": "Theatre mode",
         "particle-trail": "Particle trail",

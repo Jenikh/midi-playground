@@ -1,19 +1,28 @@
-from utils import *
-from menu import Menu
-from game import Game
-from configpage import ConfigPage
-from songselector import SongSelector
-from errorscreen import ErrorScreen
-from os import getcwd
-from platform import system as get_os
-from config import save_to_file
-import debuginfo
 import webbrowser
-import pygame
 from array import array
+from os import getcwd
+from os.path import join
+from platform import system as get_os
+import pygame
+import moderngl
+import debuginfo
+import logging
+
+
+from config import save_to_file, set_default_config, Config
+from configpage import ConfigPage
+from errorscreen import ErrorScreen
+from game import Game
+from menu import Menu
+from songselector import SongSelector
+from utils import get_colors,get_font,is_config_valid, play_sound,update_screen,FRAMERATE,open_file,make_logger
+from errors import InvalidConfigError
 
 
 def main():
+    logger = logging.getLogger()
+    logger = make_logger(logger,__name__)
+    
     # patch to fix mouse on high dpi displays
     if "Windows" in get_os():
         from ctypes import windll
@@ -24,11 +33,16 @@ def main():
         pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MINOR_VERSION, 3)
         pygame.display.gl_set_attribute(pygame.GL_CONTEXT_PROFILE_MASK, pygame.GL_CONTEXT_PROFILE_CORE)
         pygame.display.gl_set_attribute(pygame.GL_CONTEXT_FORWARD_COMPATIBLE_FLAG, True)
-
+    
     # pygame and other boilerplate
     n_frames = 0
     open_frames = 0
     can_open_web = True
+    can_move_arrows = True
+    debug_mode = False
+    c_next = False
+    debug_text = get_font(24).render("DEBUG MODE ON", True, (255, 0, 0))
+    debug_text.set_alpha(0)
     pygame.mixer.music.load("./assets/mainmenu.mp3")
     pygame.mixer.music.set_volume(Config.volume / 100)
     pygame.mixer.music.play(loops=-1, start=2)
@@ -42,11 +56,11 @@ def main():
     # noinspection PyUnusedLocal
     if [Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT] == [pygame.display.Info().current_w,pygame.display.Info().current_h]:
         flags |= pygame.FULLSCREEN
-    
-    real_screen = pygame.display.set_mode(
-        [Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT],
-        flags,
-        vsync=do_vsync
+    print(Config.volume)
+    real_screen = pygame.display.set_mode( # When you delete this the code errors
+         [Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT],
+         flags,
+         vsync=do_vsync
     )
     screen = pygame.Surface([Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT])
 
@@ -91,22 +105,33 @@ def main():
     Config.glsl_program = glsl_program
     Config.render_object = render_object
     Config.screen = screen
-
+    if not is_config_valid():
+        set_default_config()
+        raise InvalidConfigError()
     # the big guns
+    
     menu = Menu()
     song_selector = SongSelector()
     config_page = ConfigPage()
     error_screen = ErrorScreen()
     game = Game()
 
+    if Config.IN_DEVELOPMENT:
+        debug_mode = True
     # game loop
     running = True
     while running:
         open_frames +=1
         n_frames += 1
-        if open_frames >= 100 and not can_open_web:
+        if open_frames >= 100:
             can_open_web = True
+            c_next = False
             open_frames = 0
+        if open_frames == 50:
+            if not can_move_arrows:
+                print("Can press arrows!")
+                can_move_arrows = True
+            
         # thanks to TheCodingCrafter for the implementation
         if Config.theme == "rainbow":
             to_set_as_rainbow = pygame.Color((0, 0, 0))
@@ -118,11 +143,24 @@ def main():
             get_colors()["square"][0] = to_set_as_rainbow
 
         screen.fill(get_colors()["background"])
+        if debug_mode:
+            debug_text.set_alpha(255)
+            screen.blit(debug_text, (0, 0))
+        else:
+            debug_text.set_alpha(0)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.KEYDOWN:
                 # artificial lag spike for debugging purposes
+                if event.key == pygame.K_LCTRL:
+                    c_next = True
+                elif c_next:
+                    if event.key == pygame.K_c:
+                        print("Exiting...")
+                        running = False
+                        continue
+                    c_next = False
                 if event.key == pygame.K_F12:
                     total = 0
                     for _ in range(10_000_000):
@@ -133,6 +171,47 @@ def main():
                 if event.key == pygame.K_F2:
                     if game.active:
                         debuginfo.debug_rectangles(game.safe_areas)
+                if event.key == pygame.K_DOWN or event.key == pygame.K_UP or event.key == pygame.K_s or event.key == pygame.K_w:
+                    # You dont want to do this!
+                    if not can_move_arrows: continue
+                    if event.key == pygame.K_DOWN or event.key == pygame.K_UP:
+                        modifier = -1 if event.key == pygame.K_UP else 1
+                    else:
+                        modifier = -1 if event.key == pygame.K_w else 1
+                    if song_selector.active:
+                        print(song_selector.scroll)
+                        play_sound("wood.wav")
+                        if song_selector.selected_index == -1:
+                            song_selector.selected_index = 0
+                            song_selector.scroll_velocity -= modifier * len(song_selector.songs)
+                        else:
+                            if len(song_selector.songs) == song_selector.selected_index + modifier:
+                                song_selector.selected_index = 0
+                            else:
+                                song_selector.selected_index += modifier
+                                all_items = (len(song_selector.songs) - (len(song_selector.songs) - song_selector.selected_index)) * song_selector.ITEM_HEIGHT
+                                all_items = all_items + (song_selector.ITEM_SPACING*(len(song_selector.songs) + song_selector.ITEM_HEIGHT / len(song_selector.songs))) - (Config.SCREEN_HEIGHT / 2) # Center
+                                if -all_items >= 1:
+                                    all_items = 0
+                                song_selector.scroll = -all_items
+                            if song_selector.selected_index == -1:
+                                song_selector.selected_index = len(song_selector.songs) - 1
+                            if song_selector.selected_index == 0 and modifier == 1:
+                                song_selector.selected_index = 0
+                                song_selector.scroll = 0
+                            elif song_selector.selected_index == len(song_selector.songs) - 1 and modifier == -1:
+                                one_item = song_selector.ITEM_HEIGHT
+                                all_items = len(song_selector.songs) * one_item
+                                all_items = all_items + (song_selector.ITEM_SPACING*(len(song_selector.songs)-1)) - (Config.SCREEN_HEIGHT / 2) # Center
+                                song_selector.scroll = - all_items
+                            song_selector.play_song(song_selector.selected_index)
+                            can_move_arrows = False
+                if event.key == pygame.K_F10:
+                    debug_mode = not debug_mode
+                    if debug_mode:
+                        print("Debug mode enabled")
+                    else:
+                        print("Debug mode disabled")
                 if event.key == pygame.K_ESCAPE:
                     if song_selector.active:
                         song_selector.active = False
@@ -143,13 +222,16 @@ def main():
                             pygame.mixer.music.play(loops=-1, start=2)
                             song_selector.selected_index = -1
                         continue
-                    if game.active:
+                    if game.active and game.stoped:
                         game.active = False
                         song_selector.active = True
                         pygame.mixer.music.load("./assets/mainmenu.mp3")
                         pygame.mixer.music.set_volume(Config.volume / 100)
                         pygame.mixer.music.play(loops=-1, start=2)
                         song_selector.selected_index = -1
+                        continue
+                    elif game.active:
+                        game.stoped = True
                         continue
                     if config_page.active:
                         config_page.active = False
@@ -160,6 +242,10 @@ def main():
                         song_selector.active = True
                         continue
                     running = False
+            if debug_mode:
+                menu.debug_active = True
+            else:
+                menu.debug_active = False
 
             # handle menu events
             option_id = menu.handle_event(event)
@@ -168,7 +254,6 @@ def main():
                     open_file(join(getcwd(), "songs"))
                     continue
                 if option_id == "contribute" and can_open_web:
-                    # Im so sorry for this if it causes you problems!
                     open_frames = 0
                     can_open_web = False
                     wb = webbrowser.open("https://github.com/quasar098/midi-playground")
@@ -179,6 +264,7 @@ def main():
                     continue
                 menu.active = False
                 if option_id == "config":
+                    if debug_mode: config_page.__init__()
                     config_page.active = True
                 if option_id == "play":
                     song_selector.active = True
@@ -215,6 +301,9 @@ def main():
 
             # handle config page events
             if config_page.handle_event(event):
+                if debug_mode:
+                    config_page.__init__()
+                    menu.__init__()
                 config_page.active = False
                 menu.active = True
 

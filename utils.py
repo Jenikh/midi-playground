@@ -16,9 +16,15 @@ from enum import Enum
 from os.path import join
 from math import sin, pi
 from sys import setrecursionlimit
-setrecursionlimit(10000)  # increase if more notes
+import logging
+FORMATER = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+FILE_HANDLER = logging.FileHandler(f"./logs/{__name__}.log")
+FILE_HANDLER.setFormatter(FORMATER)
+logger.addHandler(FILE_HANDLER)
+logger.setLevel(logging.INFO)
 
-
+setrecursionlimit(Config.recursion_limit)
 # vsync framerate if on windows, else 60
 if platform == "win32":
     try:
@@ -59,6 +65,24 @@ class CameraFollow(Enum):
     Smoothed = 2  # smoothed camera, interpolates camera a little bit between current and previous every frame
     Predictive = 3  # smoothed camera, but you can see where the square will bounce better
 
+def make_logger(base_logger,name):
+    """Setup an logger.
+
+    Args:
+        base_logger (logger): From logging
+        name (str): Name of the logger usualy __name__
+
+    Returns:
+        base_logger (logger)
+    """
+    file_handler = logging.FileHandler(f"./logs/{name}.log")
+    file_handler.setFormatter(FORMATER)
+    base_logger.addHandler(file_handler)
+    if Config.IN_DEVELOPMENT:
+        base_logger.setLevel(logging.DEBUG)
+    else:
+        base_logger.setLevel(logging.INFO)
+    return base_logger
 
 def read_osu_file(filedata: bytes):
     filedata = filedata.decode("utf-8")
@@ -120,6 +144,7 @@ def read_midi_file(file):
     try:
         midi_file = mido.MidiFile(file=file)
     except Exception as e:
+        logger.error(f"ERROR: {str(e)}. Song filename: {file} is invalid!", exc_info=True)
         print(f"ERROR: {str(e)}")
         print(f"Song filename: {file} is invalid")
         return None
@@ -152,6 +177,18 @@ def remove_too_close_values(lst: list[float], threshold=30) -> list[float]:
 
 
 def fix_overlap(rects: list[pygame.Rect], callback=None):
+    """Fix overlap
+
+    Args:
+        rects (list[pygame.Rect])
+        callback (function, optional) Defaults to None.
+
+    Raises:
+        UserCancelsLoadingError
+
+    Returns:
+        list[pygame.Rect]
+    """
     if callback is None:
         callback = lambda _: None
     xvs = set()
@@ -224,7 +261,7 @@ def lang_key(key: str):
     english_language = TRANSLATIONS["english"]
     my_language = TRANSLATIONS.get(Config.language, {})
     if key not in english_language:
-        print(f"Warning: there is no english text for {key} yet!!")
+        logger.warning(f"There is no english text for {key} yet!!")
     return my_language.get(key, english_language.get(key, "<missing>"))
 
 
@@ -237,7 +274,7 @@ def get_font(size: int = 24, font_file_name: str = None) -> pygame.font.Font:
         try:
             _font_registry[fn_id] = pygame.font.Font(font_path, size)
         except FileNotFoundError:
-            print(f"Font {fn_id} not found!")
+            logger.error(f"Font {fn_id} not found!")
             _font_registry[fn_id] = pygame.font.SysFont("Arial", size)
     return _font_registry[fn_id]
 
@@ -270,3 +307,32 @@ def interpolate_fn(n):
     n = min(max(n, 0), 1)
 
     return sin(pi * (n - 0.5)) / 2 + 0.5
+
+
+def is_config_valid():
+    camera_mode = (0,len(lang_key('camera-mode-dropdown'))) # (From, to)
+    start_playing_delay = (1000, 5000)
+    bounce_min_spacing = (5, 50)
+    square_speed = (100, 2000)
+    music_offset = (-500, 500)
+    direction_change_chance = (0, 100)
+    hp_drain_rate = (3, 20)
+    volume = (0, 100)
+    settings_list = [
+        'camera_mode',
+        'start_playing_delay',
+        'bounce_min_spacing',
+        'square_speed',
+        'music_offset',
+        'direction_change_chance',
+        'hp_drain_rate',
+        'volume'
+        ]
+    for setting in settings_list:
+        setting_value = getattr(Config, setting)
+        if setting_value is None:
+            return False
+        start, end = locals()[f"{setting}"][0], locals()[f"{setting}"][1]
+        if not (start <= setting_value <= end):
+            return False
+    return True
